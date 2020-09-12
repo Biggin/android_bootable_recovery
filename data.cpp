@@ -273,44 +273,6 @@ int DataManager::LoadValues(const string& filename)
 	return 0;
 }
 
-int DataManager::LoadPersistValues(void)
-{
-	static bool loaded = false;
-	string dev_id;
-
-	// Only run this function once, and make sure normal settings file has not yet been read
-	if (loaded || !mBackingFile.empty() || !TWFunc::Path_Exists(PERSIST_SETTINGS_FILE))
-		return -1;
-
-	LOGINFO("Attempt to load settings from /persist settings file...\n");
-
-	if (!mInitialized)
-		SetDefaultValues();
-
-	GetValue("device_id", dev_id);
-	mPersist.SetFile(PERSIST_SETTINGS_FILE);
-	mPersist.SetFileVersion(FILE_VERSION);
-
-	// Read in the file, if possible
-	pthread_mutex_lock(&m_valuesLock);
-	mPersist.LoadValues();
-
-#ifndef TW_NO_SCREEN_TIMEOUT
-	blankTimer.setTime(mPersist.GetIntValue("tw_screen_timeout_secs"));
-#endif
-
-	update_tz_environment_variables();
-	TWFunc::Set_Brightness(GetStrValue("tw_brightness"));
-
-	pthread_mutex_unlock(&m_valuesLock);
-
-	/* Don't set storage nor backup paths this early */
-
-	loaded = true;
-
-	return 0;
-}
-
 int DataManager::Flush()
 {
 	return SaveValues();
@@ -319,15 +281,6 @@ int DataManager::Flush()
 int DataManager::SaveValues()
 {
 #ifndef TW_OEM_BUILD
-	if (PartitionManager.Mount_By_Path("/persist", false)) {
-		mPersist.SetFile(PERSIST_SETTINGS_FILE);
-		mPersist.SetFileVersion(FILE_VERSION);
-		pthread_mutex_lock(&m_valuesLock);
-		mPersist.SaveValues();
-		pthread_mutex_unlock(&m_valuesLock);
-		LOGINFO("Saved settings file values to %s\n", PERSIST_SETTINGS_FILE);
-	}
-
 	if (mBackingFile.empty())
 		return -1;
 
@@ -1088,22 +1041,30 @@ void DataManager::Output_Version(void)
 	string Path;
 	char version[255];
 
-	std::string cacheDir = TWFunc::get_cache_dir();
-	if (cacheDir.empty()) {
+	std::string logDir = TWFunc::get_log_dir();
+	if (logDir.empty()) {
 		LOGINFO("Unable to find cache directory\n");
 		return;
 	}
 
-	std::string recoveryCacheDir = cacheDir + "recovery/";
+	std::string recoveryLogDir = logDir + "recovery/";
 
-	if (cacheDir == NON_AB_CACHE_DIR) {
-		if (!PartitionManager.Mount_By_Path(NON_AB_CACHE_DIR, false)) {
+	if (logDir == CACHE_LOGS_DIR) {
+		if (!PartitionManager.Mount_By_Path(CACHE_LOGS_DIR, false)) {
 			LOGINFO("Unable to mount '%s' to write version number.\n", Path.c_str());
 			return;
 		}
+
+		if (!TWFunc::Path_Exists(recoveryLogDir)) {
+			LOGINFO("Recreating %s folder.\n", recoveryLogDir.c_str());
+			if (!TWFunc::Create_Dir_Recursive(recoveryLogDir.c_str(), S_IRWXU | S_IRWXG | S_IWGRP | S_IXGRP, 0, 0)) {
+				LOGERR("DataManager::Output_Version -- Unable to make %s: %s\n", recoveryLogDir.c_str(), strerror(errno));
+				return;
+			}
+		}
 	}
 
-	std::string verPath = recoveryCacheDir + ".version";
+	std::string verPath = recoveryLogDir + ".version";
 	if (TWFunc::Path_Exists(verPath)) {
 		unlink(verPath.c_str());
 	}
@@ -1115,7 +1076,7 @@ void DataManager::Output_Version(void)
 	strcpy(version, TW_VERSION_STR);
 	fwrite(version, sizeof(version[0]), strlen(version) / sizeof(version[0]), fp);
 	fclose(fp);
-	TWFunc::copy_file("/etc/recovery.fstab", recoveryCacheDir + "recovery.fstab", 0644);
+	TWFunc::copy_file("/etc/recovery.fstab", recoveryLogDir + "recovery.fstab", 0644);
 	PartitionManager.Output_Storage_Fstab();
 	sync();
 	LOGINFO("Version number saved to '%s'\n", verPath.c_str());

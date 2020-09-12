@@ -1402,10 +1402,10 @@ int TWPartitionManager::Wipe_Dalvik_Cache(void) {
 
 	dir.push_back("/data/dalvik-cache");
 
-	std::string cacheDir = TWFunc::get_cache_dir();
-	if (cacheDir == NON_AB_CACHE_DIR) {
-		if (!PartitionManager.Mount_By_Path(NON_AB_CACHE_DIR, false)) {
-			LOGINFO("Unable to mount %s for wiping cache.\n", NON_AB_CACHE_DIR);
+	std::string cacheDir = TWFunc::get_log_dir();
+	if (cacheDir == CACHE_LOGS_DIR) {
+		if (!PartitionManager.Mount_By_Path(CACHE_LOGS_DIR, false)) {
+			LOGINFO("Unable to mount %s for wiping cache.\n", CACHE_LOGS_DIR);
 		}
 		dir.push_back(cacheDir + "dalvik-cache");
 		dir.push_back(cacheDir + "/dc");
@@ -1420,7 +1420,7 @@ int TWPartitionManager::Wipe_Dalvik_Cache(void) {
 		}
 	}
 
-	if (cacheDir == NON_AB_CACHE_DIR) {
+	if (cacheDir == CACHE_LOGS_DIR) {
 		gui_msg("wiping_cache_dalvik=Wiping Dalvik Cache Directories...");
 	} else {
 		gui_msg("wiping_dalvik=Wiping Dalvik Directory...");
@@ -1432,7 +1432,7 @@ int TWPartitionManager::Wipe_Dalvik_Cache(void) {
 		}
 	}
 
-	if (cacheDir == NON_AB_CACHE_DIR) {
+	if (cacheDir == CACHE_LOGS_DIR) {
 		gui_msg("cache_dalvik_done=-- Dalvik Cache Directories Wipe Complete!");
 	} else {
 		gui_msg("dalvik_done=-- Dalvik Directory Wipe Complete!");
@@ -1766,11 +1766,13 @@ void TWPartitionManager::Check_Users_Decryption_Status() {
 	std::vector<users_struct>::iterator iter;
 	for (iter = Users_List.begin(); iter != Users_List.end(); iter++) {
 		if (!(*iter).isDecrypted) {
+			LOGINFO("User %s is not decrypted.\n", (*iter).userId.c_str());
 			all_is_decrypted = 0;
 			break;
 		}
 	}
 	if (all_is_decrypted == 1) {
+		LOGINFO("All found users are decrypted.\n");
 		DataManager::SetValue("tw_all_users_decrypted", "1");
 		property_set("twrp.all.users.decrypted", "true");
 	} else
@@ -2408,14 +2410,14 @@ void TWPartitionManager::Output_Storage_Fstab(void) {
 	std::vector<TWPartition*>::iterator iter;
 	char storage_partition[255];
 	std::string Temp;
-	std::string cacheDir = TWFunc::get_cache_dir();
+	std::string cacheDir = TWFunc::get_log_dir();
 
 	if (cacheDir.empty()) {
 		LOGINFO("Unable to find cache directory\n");
 		return;
 	}
 
-	std::string storageFstab = TWFunc::get_cache_dir() + "recovery/storage.fstab";
+	std::string storageFstab = TWFunc::get_log_dir() + "recovery/storage.fstab";
 	FILE *fp = fopen(storageFstab.c_str(), "w");
 
 	if (fp == NULL) {
@@ -3254,7 +3256,7 @@ bool TWPartitionManager::Prepare_Repack(const std::string& Source_Path, const st
 		if (TWFunc::copy_file(Source_Path, destination, 0644))
 			return false;
 	}
-	std::string command = "cd " + Temp_Folder_Destination + " && /sbin/magiskboot --unpack -h '" + Source_Path +"'";
+	std::string command = "cd " + Temp_Folder_Destination + " && /sbin/magiskboot unpack -h '" + Source_Path +"'";
 	if (TWFunc::Exec_Cmd(command) != 0) {
 		LOGINFO("Error unpacking %s!\n", Source_Path.c_str());
 		gui_msg(Msg(msg::kError, "unpack_error=Error unpacking image."));
@@ -3306,7 +3308,7 @@ bool TWPartitionManager::Repack_Images(const std::string& Target_Image, const st
 		LOGERR("Disabling verity is not implemented yet\n");
 	if (Repack_Options.Disable_Force_Encrypt)
 		LOGERR("Disabling force encrypt is not implemented yet\n");
-	std::string command = "cd " + path + " && /sbin/magiskboot --repack " + path + "boot.img";
+	std::string command = "cd " + path + " && /sbin/magiskboot repack " + path + "boot.img";
 	if (TWFunc::Exec_Cmd(command) != 0) {
 		gui_msg(Msg(msg::kError, "repack_error=Error repacking image."));
 		return false;
@@ -3335,7 +3337,7 @@ bool TWPartitionManager::Repack_Images(const std::string& Target_Image, const st
 			return false;
 		}
 		path = REPACK_ORIG_DIR;
-		command = "cd " + path + " && /sbin/magiskboot --repack " + path + "boot.img";
+		command = "cd " + path + " && /sbin/magiskboot repack " + path + "boot.img";
 		if (TWFunc::Exec_Cmd(command) != 0) {
 			gui_msg(Msg(msg::kError, "repack_error=Error repacking image."));
 			return false;

@@ -32,6 +32,10 @@ LOCAL_SRC_FILES := \
     terminal.cpp \
     twmsg.cpp
 
+ifneq ($(TW_DELAY_TOUCH_INIT_MS),)
+    LOCAL_CFLAGS += -DTW_DELAY_TOUCH_INIT_MS=$(TW_DELAY_TOUCH_INIT_MS)
+endif
+
 ifneq ($(TWRP_CUSTOM_KEYBOARD),)
     LOCAL_SRC_FILES += $(TWRP_CUSTOM_KEYBOARD)
 else
@@ -50,7 +54,7 @@ ifeq ($(TARGET_USERIMAGES_USE_EXT4), true)
     ifeq ($(shell test $(PLATFORM_SDK_VERSION) -le 28; echo $$?),0)
         LOCAL_C_INCLUDES += system/extras/ext4_utils \
             system/extras/ext4_utils/include \
-            bootable/recovery/crypto/ext4crypt
+            $(LOCAL_PATH)/../crypto/ext4crypt
         LOCAL_SHARED_LIBRARIES += libext4_utils
     endif
 endif
@@ -64,7 +68,11 @@ endif
 ifneq ($(TW_USE_KEY_CODE_TOUCH_SYNC),)
     LOCAL_CFLAGS += -DTW_USE_KEY_CODE_TOUCH_SYNC=$(TW_USE_KEY_CODE_TOUCH_SYNC)
 endif
-
+ifneq ($(TW_OZIP_DECRYPT_KEY),)
+    LOCAL_CFLAGS += -DTW_OZIP_DECRYPT_KEY=\"$(TW_OZIP_DECRYPT_KEY)\"
+else
+    LOCAL_CFLAGS += -DTW_OZIP_DECRYPT_KEY=0
+endif
 ifneq ($(TW_NO_SCREEN_BLANK),)
     LOCAL_CFLAGS += -DTW_NO_SCREEN_BLANK
 endif
@@ -95,6 +103,7 @@ endif
 
 LOCAL_C_INCLUDES += \
     bionic \
+    system/core/base/include \
     system/core/include \
     system/core/libpixelflinger/include
 

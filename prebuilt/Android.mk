@@ -59,6 +59,9 @@ RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/mke2fs
 RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/tune2fs
 RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/resize2fs
 RELINK_SOURCE_FILES += $(TARGET_RECOVERY_ROOT_OUT)/sbin/simg2img
+ifneq ($(TW_OZIP_DECRYPT_KEY),)
+    RELINK_SOURCE_FILES += $(TARGET_RECOVERY_ROOT_OUT)/sbin/ozip_decrypt
+endif
 ifneq ($(TARGET_ARCH), x86_64)
     RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/linker
 endif
@@ -226,6 +229,12 @@ ifeq ($(TW_INCLUDE_CRYPTO), true)
             RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/keystore_cli
             RELINK_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/servicemanager
             RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/android.system.wifi.keystore@1.0.so
+            ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 28; echo $$?),0)
+                RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/android.hardware.vibrator@1.0.so
+                RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/android.hardware.vibrator@1.1.so
+                RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/android.hardware.vibrator@1.2.so
+            endif
+
             ifneq ($(wildcard system/keymaster/keymaster_stl.cpp),)
                 RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/libkeymaster_portable.so
                 RELINK_SOURCE_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/libkeymaster_staging.so
@@ -556,6 +565,15 @@ endif
 #TWRP App "placeholder"
 include $(CLEAR_VARS)
 LOCAL_MODULE := me.twrp.twrpapp.apk
+LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_SRC_FILES := $(LOCAL_MODULE)
+include $(BUILD_PREBUILT)
+
+#TWRP App permissions for Android 9+
+include $(CLEAR_VARS)
+LOCAL_MODULE := privapp-permissions-twrpapp.xml
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
 LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
